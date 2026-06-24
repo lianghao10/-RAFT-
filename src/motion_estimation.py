@@ -14,10 +14,13 @@ def sample_flow_points(
     random_samples: int | None = None,
     seed: int = 7,
 ) -> tuple[np.ndarray, np.ndarray]:
+    """从 RAFT 稠密光流中采样匹配点对 p=(x,y), p'=(x+u,y+v)。"""
     h, w = flow.shape[:2]
     if valid_mask is None:
         valid_mask = np.ones((h, w), dtype=bool)
 
+    # 稠密光流包含每个像素的运动，直接全部用于 RANSAC 计算量太大；
+    # 因此默认按网格间隔采样，兼顾速度、稳定性和可复现实验。
     yy, xx = np.mgrid[0:h:sample_step, 0:w:sample_step]
     coords = np.column_stack([xx.ravel(), yy.ravel()])
     keep = valid_mask[coords[:, 1], coords[:, 0]]
@@ -41,6 +44,7 @@ def estimate_affine_from_flow(
     ransac_threshold: float = 3.0,
     min_points: int = 12,
 ) -> tuple[np.ndarray, int]:
+    """使用 RANSAC 从采样光流点中估计 2x3 全局仿射运动矩阵。"""
     src_pts, dst_pts = sample_flow_points(flow, valid_mask, sample_step)
     if src_pts.shape[0] < min_points:
         return IDENTITY_AFFINE.copy(), 0

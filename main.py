@@ -11,6 +11,7 @@ from src.visualization import make_frame_compare
 
 
 def load_config(path: str | None) -> dict:
+    """读取默认配置文件；命令行参数会覆盖这里的配置。"""
     if not path:
         path = "configs/default.yaml"
     config_path = Path(path)
@@ -21,7 +22,7 @@ def load_config(path: str | None) -> dict:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Traditional EIS and RAFT optical-flow video stabilization.")
+    parser = argparse.ArgumentParser(description="传统 EIS 与 RAFT 深度光流视频防抖程序。")
     parser.add_argument("--config", default="configs/default.yaml")
     parser.add_argument("--method", choices=["traditional", "raft", "both"], default=None)
     parser.add_argument("--input", help="Single input video path.")
@@ -42,11 +43,13 @@ def parse_args() -> argparse.Namespace:
 
 
 def cfg_value(args: argparse.Namespace, config: dict, key: str, default):
+    """优先使用命令行参数；如果未传入，则读取 yaml 配置；最后使用默认值。"""
     value = getattr(args, key)
     return config.get(key, default) if value is None else value
 
 
 def run_one(input_path: Path, output_path: Path | None, args: argparse.Namespace, config: dict) -> None:
+    """处理单个视频，并根据 method 选择 traditional、raft 或 both。"""
     method = cfg_value(args, config, "method", "raft")
     results_dir = Path(args.results_dir)
     resize = cfg_value(args, config, "resize", 640)
@@ -85,6 +88,7 @@ def run_one(input_path: Path, output_path: Path | None, args: argparse.Namespace
         raft_frames = result["frames"]
 
     if method == "both":
+        # both 模式会额外生成 原始帧 / 传统 EIS / RAFT 的横向对比图。
         original_frames, _ = read_video(input_path, resize)
         compare_path = results_dir / "frames_compare" / f"{input_path.stem}_compare.png"
         make_frame_compare(original_frames, traditional_frames, raft_frames, compare_path)
@@ -94,9 +98,11 @@ def main() -> None:
     args = parse_args()
     config = load_config(args.config)
     if args.input:
+        # 单视频模式：适合论文中的单个样例实验。
         run_one(Path(args.input), Path(args.output) if args.output else None, args, config)
         return
     if args.input_dir:
+        # 批处理模式：遍历目录中的常见视频格式。
         for video in list_videos(args.input_dir):
             run_one(video, None, args, config)
         return

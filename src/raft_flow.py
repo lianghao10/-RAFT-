@@ -9,7 +9,7 @@ import torch
 
 
 class RAFTFlowEstimator:
-    """Torchvision RAFT wrapper returning H x W x 2 dense flow arrays."""
+    """RAFT 推理封装，输出 H x W x 2 的稠密光流数组。"""
 
     def __init__(
         self,
@@ -22,6 +22,7 @@ class RAFTFlowEstimator:
         self.iters = iters
         self.model_name = model_name
         self.transforms = None
+        # 优先使用 CUDA；没有 GPU 时退回 CPU，方便低分辨率实验复现。
         self.model = self._load_model(weights_path)
         self.model.to(self.device).eval()
         print(f"Using device: {self.device}")
@@ -44,6 +45,7 @@ class RAFTFlowEstimator:
             self.transforms = weights.transforms()
 
         if weights_path:
+            # 兼容常见 checkpoint 格式：纯 state_dict 或包含 state_dict 字段的字典。
             checkpoint = torch.load(weights_path, map_location="cpu")
             state_dict = checkpoint.get("state_dict", checkpoint) if isinstance(checkpoint, dict) else checkpoint
             cleaned = {k.removeprefix("module."): v for k, v in state_dict.items()}
@@ -69,6 +71,7 @@ class RAFTFlowEstimator:
     def estimate(self, frame_t: np.ndarray, frame_t1: np.ndarray) -> tuple[np.ndarray, float]:
         image1 = self._to_tensor(frame_t).to(self.device)
         image2 = self._to_tensor(frame_t1).to(self.device)
+        # RAFT 要求输入尺寸能被 8 整除，推理前补边，推理后再裁回原尺寸。
         image1, (pad_h, pad_w) = self._pad_to_multiple(image1)
         image2, _ = self._pad_to_multiple(image2)
         if self.transforms is not None:
@@ -81,6 +84,7 @@ class RAFTFlowEstimator:
         flow_predictions = self.model(image1, image2, num_flow_updates=self.iters)
         elapsed = time.perf_counter() - start
 
+        # 取最后一次迭代的光流结果，并转成 OpenCV / NumPy 常用的 HWC 格式。
         flow = flow_predictions[-1][0].permute(1, 2, 0).detach().cpu().numpy()
         if pad_h:
             flow = flow[:-pad_h, :, :]
@@ -90,6 +94,7 @@ class RAFTFlowEstimator:
 
 
 def flow_to_bgr(flow: np.ndarray) -> np.ndarray:
+    """将二维光流转成 HSV 伪彩色图，便于论文插图展示。"""
     mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
     hsv = np.zeros((*flow.shape[:2], 3), dtype=np.uint8)
     hsv[..., 0] = (ang * 180 / np.pi / 2).astype(np.uint8)

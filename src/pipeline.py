@@ -26,6 +26,7 @@ def stabilize_traditional(
     smoothing_radius: int = 15,
     crop_zoom_margin: float = 1.04,
 ) -> dict[str, object]:
+    """传统 EIS 路线：LK 稀疏光流估计运动，再执行轨迹平滑与补偿。"""
     start_total = time.perf_counter()
     frames, source_fps = read_video(input_path, resize)
     transforms, timing = estimate_lk_transforms(frames)
@@ -63,6 +64,7 @@ def estimate_raft_transforms(
     percentile_low: float,
     percentile_high: float,
 ) -> tuple[np.ndarray, dict[str, float]]:
+    """RAFT 路线的运动估计阶段：稠密光流 -> 背景筛选 -> 仿射矩阵 -> dx/dy/da。"""
     masker = ForegroundMasker(mask_mode, border_ratio, percentile_low, percentile_high)
     transforms = []
     flow_times = []
@@ -72,10 +74,12 @@ def estimate_raft_transforms(
         flow, flow_time = estimator.estimate(frames[i], frames[i + 1])
         flow_times.append(flow_time)
 
+        # 保存部分光流可视化图，作为论文中的定性分析材料。
         if i == 0 or (save_flow_every > 0 and (i + 1) % save_flow_every == 0):
             flow_path = Path(results_dir) / "flow_vis" / f"{video_stem}_frame_{i + 1:04d}_flow.png"
             save_flow_visualization(flow, flow_path)
 
+        # 先筛选更可能属于背景的像素，再用 RANSAC 估计相机全局运动。
         valid_mask = masker.build(frames[i], flow)
         matrix, inlier_count = estimate_affine_from_flow(flow, valid_mask, sample_step)
         inlier_counts.append(inlier_count)
@@ -104,6 +108,7 @@ def stabilize_raft(
     percentile_low: float = 10,
     percentile_high: float = 90,
 ) -> dict[str, object]:
+    """RAFT 改进防抖主流程，负责输出稳定视频、轨迹图、光流图和指标 CSV。"""
     print(f"Processing video: {input_path}")
     start_total = time.perf_counter()
     frames, source_fps = read_video(input_path, resize)
@@ -122,6 +127,7 @@ def stabilize_raft(
         percentile_low,
         percentile_high,
     )
+    # 将逐帧相对运动积分成轨迹，平滑后再转换回补偿用的逐帧仿射参数。
     smoothed_transforms, trajectory, smoothed_trajectory = smooth_transforms(transforms, smoothing_radius)
     stabilized = stabilize_frames(frames, smoothed_transforms, crop_zoom_margin)
     write_video(output_path, stabilized, source_fps)

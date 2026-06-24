@@ -12,6 +12,7 @@ def stabilize_frames(
     smoothed_transforms: np.ndarray,
     zoom_margin: float = 1.04,
 ) -> list[np.ndarray]:
+    """根据平滑后的运动参数对每帧执行仿射补偿，并通过轻微放大隐藏黑边。"""
     if not frames:
         return []
     h, w = frames[0].shape[:2]

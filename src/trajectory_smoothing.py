@@ -4,7 +4,7 @@ import numpy as np
 
 
 def moving_average(curve: np.ndarray, radius: int) -> np.ndarray:
-    """Smooth a 1-D curve with an edge-padded box filter."""
+    """使用边缘填充的滑动平均滤波平滑一维运动曲线。"""
     if curve.size == 0 or radius <= 0:
         return curve.copy()
     window_size = 2 * radius + 1
@@ -23,7 +23,7 @@ def smooth_trajectory(trajectory: np.ndarray, radius: int = 15) -> np.ndarray:
 
 
 def smooth_transforms(transforms: np.ndarray, radius: int = 15) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return smoothed transforms, raw trajectory, and smoothed trajectory."""
+    """将逐帧运动累积为轨迹，平滑轨迹后再得到新的逐帧补偿参数。"""
     if transforms.size == 0:
         empty = transforms.astype(np.float32)
         return empty, empty, empty
@@ -34,6 +34,7 @@ def smooth_transforms(transforms: np.ndarray, radius: int = 15) -> tuple[np.ndar
 
 
 def transform_to_params(matrix: np.ndarray) -> np.ndarray:
+    """从 2x3 仿射矩阵中提取水平位移 dx、垂直位移 dy 和旋转角 da。"""
     dx = float(matrix[0, 2])
     dy = float(matrix[1, 2])
     da = float(np.arctan2(matrix[1, 0], matrix[0, 0]))
@@ -41,6 +42,7 @@ def transform_to_params(matrix: np.ndarray) -> np.ndarray:
 
 
 def params_to_transform(params: np.ndarray) -> np.ndarray:
+    """将 dx、dy、da 还原成 OpenCV warpAffine 使用的 2x3 矩阵。"""
     dx, dy, da = [float(v) for v in params]
     cos_a = np.cos(da)
     sin_a = np.sin(da)
