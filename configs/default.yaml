@@ -1,0 +1,12 @@
+method: raft
+mask: flow_percentile
+sample_step: 8
+resize: 640
+smoothing_radius: 15
+border_ratio: 0.2
+percentile_low: 10
+percentile_high: 90
+raft_model: small
+raft_iters: 12
+save_flow_every: 50
+crop_zoom_margin: 1.04
