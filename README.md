@@ -167,8 +167,10 @@ results/metrics.csv
 CSV 字段如下：
 
 ```text
-video_name, method, crop_ratio, stability_score, mean_flow_time, mean_total_time, fps, notes
+video_name, input_video, output_video, method, raft_model, mask_mode, sample_step, resize, device, crop_ratio, stability_score, mean_flow_time, mean_total_time, fps, notes
 ```
+
+每次运行还会在 `results/logs/` 下保存一个 JSON 日志文件，记录本次实验的视频路径、输出路径、方法、RAFT 模型、mask 模式、采样步长、resize、运行设备、耗时和指标，方便后续整理论文实验表格。
 
 ## 评价指标说明
 
@@ -177,6 +179,14 @@ video_name, method, crop_ratio, stability_score, mean_flow_time, mean_total_time
 - `mean_flow_time`：平均每对相邻帧的光流估计或运动估计耗时。
 - `mean_total_time`：平均每帧总处理耗时。
 - `fps`：整体处理速度。
+
+需要注意：`crop_ratio` 是根据补偿后的缩放比例估算出的有效画面保留程度；`stability_score` 是本课程实验中用于比较防抖前后轨迹高频能量变化的近似指标，并不等同于所有视频防抖论文中的统一评价标准。
+
+## 方法边界说明
+
+本项目不从零训练 RAFT，而是使用公开预训练权重完成推理。原因是从零训练 RAFT 需要大规模带真实光流标注的数据集和较高 GPU 算力；本文重点是复现 RAFT 推理过程，并研究其在视频防抖运动估计模块中的应用。
+
+`mog2` 模式使用 OpenCV MOG2 背景建模作为前景掩码提取的轻量实现，用来近似体现 GMM 前景过滤思想。论文中建议表述为“采用 MOG2 作为 GMM 类背景建模思想的工程化实现”，不要写成“完整复现了改进 GMM 算法”。
 
 ## 建议的论文实验流程
 

@@ -10,7 +10,7 @@ from .compensation import stabilize_frames
 from .crop import crop_ratio_from_zoom
 from .foreground_filter import ForegroundMasker
 from .io_utils import read_video, write_video
-from .metrics import append_metrics, stability_score
+from .metrics import append_metrics, save_run_log, stability_score
 from .motion_estimation import estimate_affine_from_flow
 from .raft_flow import RAFTFlowEstimator, save_flow_visualization
 from .traditional_eis import estimate_lk_transforms
@@ -40,7 +40,14 @@ def stabilize_traditional(
     total_time = time.perf_counter() - start_total
     row = {
         "video_name": Path(input_path).name,
+        "input_video": str(input_path),
+        "output_video": str(output_path),
         "method": "traditional",
+        "raft_model": "",
+        "mask_mode": "",
+        "sample_step": "",
+        "resize": resize or "",
+        "device": "cpu",
         "crop_ratio": f"{crop_ratio_from_zoom(crop_zoom_margin):.4f}",
         "stability_score": f"{stability_score(trajectory, smoothed_trajectory):.4f}",
         "mean_flow_time": f"{timing['mean_flow_time']:.6f}",
@@ -49,6 +56,7 @@ def stabilize_traditional(
         "notes": "Shi-Tomasi + LK + affine RANSAC",
     }
     append_metrics(Path(results_dir) / "metrics.csv", row)
+    save_run_log(results_dir, row)
     return {"frames": stabilized, "metrics": row}
 
 
@@ -136,7 +144,14 @@ def stabilize_raft(
     total_time = time.perf_counter() - start_total
     row = {
         "video_name": Path(input_path).name,
+        "input_video": str(input_path),
+        "output_video": str(output_path),
         "method": f"raft_{mask}",
+        "raft_model": raft_model,
+        "mask_mode": mask,
+        "sample_step": sample_step,
+        "resize": resize or "",
+        "device": str(estimator.device),
         "crop_ratio": f"{crop_ratio_from_zoom(crop_zoom_margin):.4f}",
         "stability_score": f"{stability_score(trajectory, smoothed_trajectory):.4f}",
         "mean_flow_time": f"{timing['mean_flow_time']:.6f}",
@@ -145,4 +160,5 @@ def stabilize_raft(
         "notes": f"RAFT {raft_model}, step={sample_step}, mean_inliers={timing['mean_inliers']:.1f}",
     }
     append_metrics(Path(results_dir) / "metrics.csv", row)
+    save_run_log(results_dir, row)
     return {"frames": stabilized, "metrics": row}

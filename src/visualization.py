@@ -37,21 +37,22 @@ def make_frame_compare(
     max_frames: int = 4,
 ) -> None:
     candidates = [("Original", original), ("Traditional EIS", traditional), ("RAFT", raft)]
-    rows = [(title, frames) for title, frames in candidates if frames]
-    if not rows:
+    columns = [(title, frames) for title, frames in candidates if frames]
+    if not columns:
         return
 
     frame_count = min(len(original), max_frames)
     indices = np.linspace(0, len(original) - 1, frame_count, dtype=int)
-    tiles = []
-    for title, frames in rows:
-        selected = []
-        for idx in indices:
+    rows = []
+    for idx in indices:
+        row_tiles = []
+        for title, frames in columns:
             frame = frames[min(idx, len(frames) - 1)].copy()
             cv2.putText(frame, title, (16, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv2.LINE_AA)
-            selected.append(frame)
-        tiles.append(np.concatenate(selected, axis=1))
-    compare = np.concatenate(tiles, axis=0)
+            cv2.putText(frame, f"frame {idx}", (16, 64), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            row_tiles.append(frame)
+        rows.append(np.concatenate(row_tiles, axis=1))
+    compare = np.concatenate(rows, axis=0)
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(output), compare)
